@@ -59,15 +59,51 @@ export const springService = {
         // 정확히 일치하는 것만 리턴
         return projects.find((p) => p.name.trim() === projectName.trim()) ?? null;
     },
-    async summarizeFeedbackResult({ projectId, leadId, emailId, originalText, responseSummary, responseType }) {
-        const res = await axios.post(`${BASE_URL}/feedback`, {
-            projectId,
-            leadId,
-            emailId,
-            originalText,
-            responseSummary,
-            responseType
-        });
+    
+    // 이메일 관련 추가 메서드들
+    async getEmailById(emailId) {
+        const res = await axios.get(`${BASE_URL}/emails/${emailId}`);
+        return res.data;
+    },
+    
+    async listEmails() {
+        const res = await axios.get(`${BASE_URL}/emails`);
+        return res.data;
+    },
+    
+    async updateEmail(emailId, { subject, body }) {
+        const res = await axios.put(`${BASE_URL}/emails/${emailId}`, { subject, body });
+        return res.data;
+    },
+    
+    async deleteEmail(emailId) {
+        const res = await axios.delete(`${BASE_URL}/emails/${emailId}`);
+        return res.data;
+    },
+    
+    async getEmailsByProject(projectId) {
+        const res = await axios.get(`${BASE_URL}/emails/project/${projectId}/emails`);
+        return res.data;
+    },
+    
+    async getEmailsByLead(leadId) {
+        const res = await axios.get(`${BASE_URL}/emails/lead/${leadId}/emails`);
+        return res.data;
+    },
+    
+    // 피드백 관련 메서드들
+    async listFeedbacks() {
+        const res = await axios.get(`${BASE_URL}/feedbacks`);
+        return res.data;
+    },
+    
+    async getFeedbackById(feedbackId) {
+        const res = await axios.get(`${BASE_URL}/feedbacks/${feedbackId}`);
+        return res.data;
+    },
+    
+    async getFeedbacksByEmail(emailId) {
+        const res = await axios.get(`${BASE_URL}/feedbacks/email/${emailId}/feedbacks`);
         return res.data;
     }
     // 필요시 추가 엔드포인트 여기에 계속 확장

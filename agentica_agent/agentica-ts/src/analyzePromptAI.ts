@@ -79,12 +79,13 @@ export async function analyzePromptAI(prompt: string): Promise<AnalyzePromptResu
 // fallback 기반 intent 추론기
 function fallbackInferIntent(prompt: string): AnalyzePromptResult {
   const lower = prompt.toLowerCase();
+  console.log('🔍 fallback 분석 중:', { prompt, lower });
 
   const scoringRules = [
     {
       intent: 'register_project',
-      mustInclude: ['사업', '프로젝트'],
-      optional: ['등록', '추가', '시작', '진행', '런칭', '설립', '개발', '추진', '할거야'],
+      mustInclude: ['사업'],
+      optional: ['프로젝트', '등록', '추가', '시작', '진행', '런칭', '설립', '개발', '추진', '할거야', '등록해줘'],
     },
     {
       intent: 'register_lead',
@@ -133,6 +134,12 @@ function fallbackInferIntent(prompt: string): AnalyzePromptResult {
 
   for (const rule of scoringRules) {
     const hasMust = rule.mustInclude.every(k => lower.includes(k));
+    console.log(`🔍 ${rule.intent} 체크:`, { 
+      mustInclude: rule.mustInclude, 
+      hasMust, 
+      optional: rule.optional.filter(k => lower.includes(k))
+    });
+    
     if (!hasMust) continue;
 
     const optionalMatches = rule.optional.filter(k => lower.includes(k)).length;
