@@ -1,29 +1,6 @@
 export declare function generateInitialEmail({ userPrompt }: {
     userPrompt: string;
-}): Promise<{
-    status: string;
-    error: string;
-} | ({
-    companyName: string;
-    status: string;
-    error: string;
-    subject?: undefined;
-    body?: undefined;
-    contactEmail?: undefined;
-    projectId?: undefined;
-    leadId?: undefined;
-    preview?: undefined;
-} | {
-    companyName: string;
-    status: string;
-    subject: any;
-    body: any;
-    contactEmail: string;
-    projectId: any;
-    leadId: number;
-    preview: string;
-    error?: undefined;
-})[]>;
+}): Promise<any[]>;
 export declare function generateFollowupEmail({ userPrompt }: {
     userPrompt: string;
 }): Promise<{

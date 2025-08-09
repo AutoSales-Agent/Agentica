@@ -5,6 +5,7 @@ import * as leadFuncs from './functions/leadFunctions.js';
 import * as emailFuncs from './functions/emailFunctions.js';
 export async function chatbotHandler(input) {
     const { intent, extracted_params } = await analyzePromptAI(input);
+    console.log('🛠 DEBUG — analyzePromptAI 결과:', intent, extracted_params);
     switch (intent) {
         case 'register_project':
             return await projectFuncs.createProject(extracted_params);
@@ -12,8 +13,15 @@ export async function chatbotHandler(input) {
             return await leadFuncs.createLead(extracted_params);
         case 'connect_leads':
             return await leadFuncs.autoConnectLeads(extracted_params);
-        case 'initial_email':
-            return await emailFuncs.generateInitialEmail(extracted_params);
+        case 'initial_email': {
+            const { userPrompt } = extracted_params;
+            const result = await emailFuncs.generateInitialEmail({ userPrompt });
+            return {
+                status: 'success',
+                message: `초안 생성 완료: ${result.length}건`,
+                data: result
+            };
+        }
         case 'followup_email':
             return await emailFuncs.generateFollowupEmail(extracted_params);
         case 'email_rewrite_request':

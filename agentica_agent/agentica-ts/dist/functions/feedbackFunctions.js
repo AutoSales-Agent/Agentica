@@ -33,21 +33,19 @@ export async function summarizeFeedback({ leadName, projectName, subject, body }
     const prompt = `
 다음은 '${projectName}' 사업에 대해 '${leadName}' 고객이 보낸 회신 이메일입니다.
 
-내용을 정확히 분석하여 다음 두 가지 정보를 반드시 추출하세요:
+내용을 정확히 분석해서 아래 두 항목을 정확히 작성하세요:
 
-1. 회신 요약 (핵심만 간결하게 1~2문장으로 요약)
-2. 응답 유형 (반드시 아래 다섯 가지 중 하나를 영어 소문자로만 작성):
+1. 회신 요약: 핵심 내용을 1~2문장으로 요약하세요.
+2. 응답 유형: 반드시 아래 다섯 가지 중 하나만 골라 소문자로 적으세요
    - positive
    - neutral
    - negative
    - out-of-office
    - unreadable
 
-✅ 응답은 반드시 아래 예시 형식처럼만 출력하고, 그 외 설명이나 안내 문구는 절대 포함하지 마세요.
-
-예시:
-1. 제안에 긍정적이며, 미팅을 제안함.
-2. positive
+형식 예시:
+1. 제안을 거절하고 정중히 감사 인사를 전함.
+2. negative
 
 제목: ${subject}
 내용:

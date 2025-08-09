@@ -316,82 +316,8 @@ export const agent = new Agentica({
                             $defs: {}
                         },
                         output: {
-                            anyOf: [
-                                {
-                                    type: "array",
-                                    items: {
-                                        anyOf: [
-                                            {
-                                                type: "object",
-                                                properties: {
-                                                    companyName: {
-                                                        type: "string"
-                                                    },
-                                                    status: {
-                                                        type: "string"
-                                                    },
-                                                    subject: {},
-                                                    body: {},
-                                                    contactEmail: {
-                                                        type: "string"
-                                                    },
-                                                    projectId: {},
-                                                    leadId: {
-                                                        type: "number"
-                                                    },
-                                                    preview: {
-                                                        type: "string"
-                                                    }
-                                                },
-                                                required: [
-                                                    "companyName",
-                                                    "status",
-                                                    "subject",
-                                                    "body",
-                                                    "contactEmail",
-                                                    "projectId",
-                                                    "leadId",
-                                                    "preview"
-                                                ]
-                                            },
-                                            {
-                                                type: "object",
-                                                properties: {
-                                                    companyName: {
-                                                        type: "string"
-                                                    },
-                                                    status: {
-                                                        type: "string"
-                                                    },
-                                                    error: {
-                                                        type: "string"
-                                                    }
-                                                },
-                                                required: [
-                                                    "companyName",
-                                                    "status",
-                                                    "error"
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                },
-                                {
-                                    type: "object",
-                                    properties: {
-                                        status: {
-                                            type: "string"
-                                        },
-                                        error: {
-                                            type: "string"
-                                        }
-                                    },
-                                    required: [
-                                        "status",
-                                        "error"
-                                    ]
-                                }
-                            ]
+                            type: "array",
+                            items: {}
                         },
                         validate: (() => { const _io0 = input => "string" === typeof input.userPrompt; const _vo0 = (input, _path, _exceptionable = true) => ["string" === typeof input.userPrompt || _report(_exceptionable, {
                                 path: _path + ".userPrompt",

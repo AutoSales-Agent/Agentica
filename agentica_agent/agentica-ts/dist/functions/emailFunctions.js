@@ -8,8 +8,15 @@ dotenv.config({ override: true });
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+function chunk(arr, size = 4) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size)
+        out.push(arr.slice(i, i + size));
+    return out;
+}
 export async function generateInitialEmail({ userPrompt }) {
     console.log('📧 이메일 생성 시작:', userPrompt);
+
     // 1. OpenAI로 파라미터 추출 (Agentica 사용 안함)
     const extractPrompt = `
 다음 요청에서 프로젝트명과 기업명들을 JSON으로 추출하세요:
@@ -18,6 +25,16 @@ export async function generateInitialEmail({ userPrompt }) {
 정확히 이 형식으로만 답하세요:
 {"projectName": "프로젝트명", "leadNames": ["기업1", "기업2"]}
 `;
+
+    // 1. OpenAI로 파라미터 추출
+    const extractPrompt = `
+다음 요청에서 프로젝트명과 기업명들을 JSON으로 추출하세요:
+"${userPrompt}"
+
+정확히 이 형식으로만 답하세요:
+{"projectName": "프로젝트명", "leadNames": ["기업1", "기업2"]}
+  `;
+
     let extractText;
     try {
         const extractResponse = await openai.chat.completions.create({
@@ -30,39 +47,40 @@ export async function generateInitialEmail({ userPrompt }) {
     }
     catch (error) {
         console.error('OpenAI 호출 오류:', error);
-        return { status: 'error', error: 'AI 서비스 호출 실패' };
+        return [{ status: 'error', error: 'AI 서비스 호출 실패' }];
     }
     // 2. JSON 파싱
     const cleaned = extractText.replace(/```json|```/g, '').trim();
     const match = cleaned.match(/\{.*\}/s);
     if (!match) {
-        return { status: 'error', error: '파라미터 추출 실패 - JSON 형식을 찾을 수 없음' };
+        return [{ status: 'error', error: '파라미터 추출 실패 - JSON 형식을 찾을 수 없음' }];
     }
     let parsed;
     try {
         parsed = JSON.parse(match[0]);
         if (!parsed.projectName || !Array.isArray(parsed.leadNames) || parsed.leadNames.length === 0) {
-            return { status: 'error', error: 'projectName 또는 leadNames가 올바르지 않음' };
+            return [{ status: 'error', error: 'projectName 또는 leadNames가 올바르지 않음' }];
         }
     }
     catch (error) {
         console.error('JSON 파싱 오류:', error);
-        return { status: 'error', error: 'JSON 파싱 실패' };
+        return [{ status: 'error', error: 'JSON 파싱 실패' }];
     }
     // 3. 프로젝트 조회
     const project = await springService.getProjectByName(parsed.projectName.trim());
     if (!project) {
-        return { status: 'error', error: `프로젝트 '${parsed.projectName}' 를 찾을 수 없음` };
+        return [{ status: 'error', error: `프로젝트 '${parsed.projectName}' 를 찾을 수 없음` }];
     }
     // 4. 기업 정보 조회
     const leadResults = await Promise.all(parsed.leadNames.map(name => springService.getLeadByName(name.trim())));
     const validLeads = leadResults.filter((l) => Boolean(l));
     if (validLeads.length === 0) {
-        return { status: 'error', error: '유효한 기업을 찾을 수 없음' };
+        return [{ status: 'error', error: '유효한 기업을 찾을 수 없음' }];
     }
     console.log(`✅ 발견된 기업: ${validLeads.map(l => l.name).join(', ')}`);
     const results = [];
     const emailPayloads = [];
+
     // 5. 각 기업별로 맞춤 이메일 생성 (OpenAI 직접 호출)
     for (const lead of validLeads) {
         console.log(`📝 ${lead.name} 맞춤 이메일 생성 중...`);
@@ -85,6 +103,33 @@ export async function generateInitialEmail({ userPrompt }) {
 정확히 이 JSON 형식으로만 답하세요:
 {"subject":"이메일 제목","body":"이메일 본문"}
 `;
+=======
+    // 5. 마이크로 배치로 메일 생성
+    const leadGroups = chunk(validLeads, 4); // 3~5로 조절 가능
+    for (const group of leadGroups) {
+        const mailPrompt = `
+당신은 전문 B2B 세일즈 이메일 작성자입니다.
+당사의 이름은 autosales이고 이 메일을 보내는 사람의 이름은 심규성, 연락처 정보는 sks02040204@gmail.com 입니다.
+사용자 요청: "${userPrompt}"
+프로젝트 설명: ${project.description}
+
+대상 고객 리스트:
+${group.map((lead, idx) => `
+${idx + 1}.
+- 회사명: ${lead.name}
+- 산업분야: ${lead.industry}
+- 담당자: ${lead.contactName || '담당자님'}
+- 회사규모: ${lead.size || '미정'}
+- 언어: ${lead.language || '한국어'}
+`).join('\n')}
+
+각 회사에 맞는 맞춤형 B2B 제안 이메일을 작성하세요.
+반드시 JSON 배열 형식으로만 답하세요:
+[
+  {"companyName":"...", "subject":"...", "body":"..."},
+  ...
+]
+    `;
         try {
             const mailResponse = await openai.chat.completions.create({
                 model: "gpt-4o",
@@ -92,55 +137,66 @@ export async function generateInitialEmail({ userPrompt }) {
                 temperature: 0.7,
             });
             const mailText = mailResponse.choices[0]?.message?.content || '';
-            console.log(`[${lead.name} 응답]`, mailText.substring(0, 100) + '...');
-            const mailMatch = mailText.match(/\{.*\}/s);
+            const mailMatch = mailText.match(/\[.*\]/s);
             if (!mailMatch) {
-                results.push({
+                group.forEach(lead => results.push({
                     companyName: lead.name,
                     status: 'error',
-                    error: '이메일 생성 실패 - JSON 형식 오류'
-                });
+                    error: 'JSON 형식 오류'
+                }));
                 continue;
             }
-            const parsedMail = JSON.parse(mailMatch[0]);
-            if (!parsedMail.subject || !parsedMail.body) {
-                results.push({
+            let parsedBatch;
+            try {
+                parsedBatch = JSON.parse(mailMatch[0]);
+            }
+            catch {
+                group.forEach(lead => results.push({
                     companyName: lead.name,
                     status: 'error',
-                    error: '제목 또는 본문 누락'
-                });
+                    error: 'JSON 파싱 실패'
+                }));
                 continue;
             }
-            results.push({
-                companyName: lead.name,
-                status: 'success',
-                subject: parsedMail.subject,
-                body: parsedMail.body,
-                contactEmail: lead.contactEmail,
-                projectId: project.id,
-                leadId: lead.id,
-                preview: parsedMail.body.substring(0, 150) + '...'
-            });
-            // 초안 전송용 배열에도 저장
-            emailPayloads.push({
-                projectId: project.id,
-                leadId: lead.id,
-                subject: parsedMail.subject,
-                body: parsedMail.body,
-                contactEmail: lead.contactEmail,
-            });
-            console.log(`✅ ${lead.name} 이메일 생성 완료: ${parsedMail.subject}`);
+            for (const item of parsedBatch) {
+                const lead = group.find(l => l.name === item.companyName);
+                if (!lead || !item.subject || !item.body) {
+                    results.push({
+                        companyName: item.companyName || 'Unknown',
+                        status: 'error',
+                        error: '제목 또는 본문 누락'
+                    });
+                    continue;
+                }
+                results.push({
+                    companyName: lead.name,
+                    status: 'success',
+                    subject: item.subject,
+                    body: item.body,
+                    contactEmail: lead.contactEmail,
+                    projectId: project.id,
+                    leadId: lead.id,
+                    preview: item.body.substring(0, 150) + '...'
+                });
+                emailPayloads.push({
+                    projectId: project.id,
+                    leadId: lead.id,
+                    subject: item.subject,
+                    body: item.body,
+                    contactEmail: lead.contactEmail,
+                });
+            }
         }
         catch (error) {
-            console.error(`${lead.name} 이메일 생성 오류:`, error);
-            results.push({
+            console.error('배치 메일 생성 오류:', error);
+            group.forEach(lead => results.push({
                 companyName: lead.name,
                 status: 'error',
-                error: 'AI 서비스 호출 실패'
-            });
+                error: 'AI 호출 실패'
+            }));
         }
     }
-    // 6. Spring으로 한 번에 전체 메일 초안 전송
+    // 6. Spring으로 한 번에 전송
     if (emailPayloads.length > 0) {
         try {
             const response = await axios.post('http://localhost:8080/emails/drafts', emailPayloads);
@@ -149,7 +205,7 @@ export async function generateInitialEmail({ userPrompt }) {
             if (sessionId) {
                 const url = `http://localhost:8080/emails/drafts?sessionId=${sessionId}`;
                 console.log('📬 초안 확인 페이지:', url);
-                await open(url); // 자동 브라우저 오픈 (CLI 실행 환경일 때만 가능)
+                await open(url);
             }
         }
         catch (error) {
@@ -157,7 +213,7 @@ export async function generateInitialEmail({ userPrompt }) {
         }
     }
     console.log('🎉 전체 이메일 생성 완료');
-    return results;
+    return results; // 항상 배열 반환
 }
 // 2. 후속 메일 생성
 export async function generateFollowupEmail({ userPrompt }) {
